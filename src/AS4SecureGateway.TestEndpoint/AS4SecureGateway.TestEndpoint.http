@@ -1,0 +1,6 @@
+@AS4SecureGateway.TestEndpoint_HostAddress = http://localhost:5067
+
+GET {{AS4SecureGateway.TestEndpoint_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

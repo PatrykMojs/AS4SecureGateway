@@ -1,0 +1,201 @@
+# =========================================================
+# .NET build results
+# =========================================================
+[Bb]in/
+[Oo]bj/
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+
+# =========================================================
+# Visual Studio / VS Code / Rider
+# =========================================================
+.vs/
+.vscode/
+.idea/
+
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+*.sln.iml
+
+# =========================================================
+# Rider / ReSharper
+# =========================================================
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# =========================================================
+# NuGet
+# =========================================================
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+project.lock.json
+project.assets.json
+
+# Jeżeli kiedyś użyjesz packages.lock.json świadomie,
+# możesz go commitować. Na razie ignorujemy lokalne locki.
+packages.lock.json
+
+# =========================================================
+# Test results / coverage
+# =========================================================
+[Tt]est[Rr]esult*/
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+coverage-results/
+coverage.cobertura.xml
+coverage.opencover.xml
+lcov.info
+
+# =========================================================
+# Logs
+# =========================================================
+logs/
+[Ll]ogs/
+*.log
+
+# =========================================================
+# Environment files / local secrets
+# =========================================================
+.env
+.env.*
+*.env
+
+appsettings.Local.json
+appsettings.Production.json
+appsettings.Staging.json
+*.secrets.json
+
+# Lokalna konfiguracja użytkownika
+*.local.json
+
+# =========================================================
+# AS4 Secure Gateway - certificates, keys, secrets
+# =========================================================
+*.pfx
+*.p12
+*.pem
+*.key
+*.crt
+*.cer
+*.der
+*.jks
+*.keystore
+*.truststore
+
+# Hasła / sekrety / lokalne konfiguracje certyfikatów
+*password*
+*secret*
+*private*
+*Private*
+*PRIVATE*
+
+# =========================================================
+# AS4 generated messages / temporary files
+# =========================================================
+*.tmp
+*.temp
+
+# Wygenerowane wiadomości AS4/XML
+generated/
+outbox/
+inbox/
+archive/
+failed/
+processed/
+
+# Jeżeli aplikacja będzie tworzyć XML-e robocze lokalnie
+*.generated.xml
+*.signed.xml
+*.encrypted.xml
+*.compressed
+*.gz
+
+# =========================================================
+# Samples
+# =========================================================
+
+# Certyfikaty w samples nie powinny trafiać do repo
+samples/certificates/*
+!samples/certificates/.gitkeep
+
+# Wygenerowane wyjścia testowe
+samples/output/*
+!samples/output/.gitkeep
+
+# Lokalne wejścia testowe — opcjonalnie ignorowane
+samples/input/*
+!samples/input/.gitkeep
+
+# Jeżeli chcesz mieć przykładowy XML w repo, ten plik zostaje dozwolony
+!samples/example-message.xml
+
+# =========================================================
+# Documentation generated files
+# =========================================================
+docs/screenshots/*.tmp
+docs/screenshots/*.log
+docs/diagrams/*.tmp
+docs/diagrams/*.log
+
+# =========================================================
+# Windows / macOS / Linux system files
+# =========================================================
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =========================================================
+# Backup files
+# =========================================================
+*.bak
+*.backup
+*.old
+*.orig
+*.swp
+*.swo
+
+# =========================================================
+# Database / local storage files
+# =========================================================
+*.db
+*.sqlite
+*.sqlite3
+*.fdb
+*.FDB
+
+# Lokalna baza Firebird, jeżeli będziesz ją tworzył testowo
+data/
+local-data/
+
+# =========================================================
+# Publish output
+# =========================================================
+publish/
+Publish/
+artifacts/
