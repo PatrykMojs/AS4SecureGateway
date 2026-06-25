@@ -42,7 +42,7 @@ public sealed class DispatchAs4MessageHandler
             command.ReceiverPartyId);
 
         var payloadHref = command.SecurityOptions.EnableCompression
-            ? "cid:ebms3-payload@localhost"
+            ? As4MessageDefaults.PayloadHref
             : string.Empty;
 
         var envelope = _envelopeFactory.CreateEnvelope(metadata, payloadHref);
