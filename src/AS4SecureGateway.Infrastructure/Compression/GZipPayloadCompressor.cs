@@ -1,5 +1,5 @@
 using System.IO.Compression;
-using AS4SecureGateway.Application.Abstraction.Compression;
+using AS4SecureGateway.Application.Abstractions.Compression;
 
 namespace AS4SecureGateway.Infrastructure.Compression;
 

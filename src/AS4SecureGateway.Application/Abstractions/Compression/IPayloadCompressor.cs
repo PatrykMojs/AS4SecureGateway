@@ -1,4 +1,4 @@
-namespace AS4SecureGateway.Application.Abstraction.Compression;
+namespace AS4SecureGateway.Application.Abstractions.Compression;
 
 public interface IPayloadCompressor
 {
