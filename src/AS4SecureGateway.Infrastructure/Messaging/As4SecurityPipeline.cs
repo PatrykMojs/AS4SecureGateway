@@ -46,7 +46,13 @@ public sealed class As4SecurityPipeline : IAs4SecurityPipeline
         if(string.IsNullOrWhiteSpace(businessBodyXml))
             throw new ArgumentException("Business body XML cannot be empty.", nameof(businessBodyXml));
 
-        var certificates = await _certificateProvider.GetCertificatesAsync(cancellationToken);
+        var requiresCertificates = 
+            securityOptions.EnableEncryption ||
+            securityOptions.EnableSignature;
+
+        var certificates = requiresCertificates
+            ? await _certificateProvider.GetCertificatesAsync(cancellationToken)
+            : null;
 
         if (securityOptions.EnableCompression)
         {
@@ -68,7 +74,7 @@ public sealed class As4SecurityPipeline : IAs4SecurityPipeline
         XmlDocument envelope,
         string businessBodyXml,
         SecurityProcessingOptions securityOptions,
-        As4CertificateSet certificates)
+        As4CertificateSet? certificates)
     {
         if (!securityOptions.EnableSignature && !securityOptions.EnableEncryption)
         {
@@ -81,6 +87,9 @@ public sealed class As4SecurityPipeline : IAs4SecurityPipeline
                 Attachments = new Dictionary<string, byte[]>()
             };
         }
+
+        if (certificates is null)
+            throw new InvalidOperationException("Certificates are required for signing or encryption.");
 
         if (securityOptions.EnableSignature)
         {
@@ -111,12 +120,15 @@ public sealed class As4SecurityPipeline : IAs4SecurityPipeline
         XmlDocument envelope,
         string businessBodyXml,
         SecurityProcessingOptions securityOptions,
-        As4CertificateSet certificates)
+        As4CertificateSet? certificates)
     {
         var payloadBytes = Encoding.UTF8.GetBytes(businessBodyXml);
         var compressedPayload = _payloadCompressor.Compress(payloadBytes);
 
         byte[] attachmentContent = compressedPayload;
+
+        if (certificates is null)
+            throw new InvalidOperationException("Certificates are required for signing or encryption.");
 
         if (securityOptions.EnableSignature)
         {

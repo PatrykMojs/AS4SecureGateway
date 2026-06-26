@@ -6,6 +6,7 @@ using AS4SecureGateway.Infrastructure.Certificates;
 using AS4SecureGateway.Infrastructure.Compression;
 using AS4SecureGateway.Infrastructure.Cryptography.Encryption;
 using AS4SecureGateway.Infrastructure.Cryptography.Signatures;
+using AS4SecureGateway.Infrastructure.Http;
 using AS4SecureGateway.Infrastructure.Messaging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,11 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<As4CertificateOptions>(configuration.GetSection("Certificates"));
+        
+        services.Configure<As4TransportOptions>(
+            configuration.GetSection("As4Transport"));
+
+        services.AddHttpClient<IAs4TransportClient, As4TransportClient>();
 
         services.AddSingleton<IAs4CertificateProvider, As4CertificateProvider>();
 
