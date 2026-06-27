@@ -1,25 +1,64 @@
+using System.Text;
+
 var builder = WebApplication.CreateBuilder(args);
-
-// Add services to the container.
-
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+app.MapGet("/", () => Results.Ok("AS4 Secure Gateway Test Endpoint is runing."));
+
+app.MapPost("/api/as4/inbound", async (
+    HttpRequest request,
+    IWebHostEnvironment environment,
+    ILogger<Program> logger,
+    CancellationToken cancellationToken) =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+   var receivedDirectory = Path.Combine(environment.ContentRootPath, "received");
 
-app.UseHttpsRedirection();
+   Directory.CreateDirectory(receivedDirectory);
 
-app.UseAuthorization();
+   var contentType = request.ContentType ?? "unknown";
 
-app.MapControllers();
+   using var reader = new StreamReader(
+    request.Body,
+    Encoding.UTF8,
+    detectEncodingFromByteOrderMarks: true,
+    leaveOpen: false);
+
+    var requestBody = await reader.ReadToEndAsync(cancellationToken);
+
+    var fileName = $"as4-request-{DateTime.UtcNow:yyyyMMdd-HHmmss-fff}.txt";
+    var filePath = Path.Combine(receivedDirectory, fileName);
+
+    var fileContent = $"""
+                      ReceivedAtUtc: {DateTime.UtcNow:O}
+                      Content-Type: {contentType}
+
+                      {requestBody}
+                      """; 
+
+    await File.WriteAllTextAsync(filePath, fileContent, Encoding.UTF8, cancellationToken);
+
+    logger.LogInformation(
+        "Received AS4 message. Content-Type: {ContentType}. Saved to: {FilePath}",
+        contentType,
+        filePath);
+
+    var responseXml = $"""
+                      <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope">
+                        <soap:Body>
+                          <SubmitMessageResponse xmlns="urn:demo:as4:test-endpoint">
+                            <Status>Accepted</Status>
+                            <MessageId>{Guid.NewGuid()}</MessageId>
+                            <ReceivedAtUtc>{DateTime.UtcNow:O}</ReceivedAtUtc>
+                          </SubmitMessageResponse>
+                        </soap:Body>
+                      </soap:Envelope>
+                      """; 
+
+    return Results.Content(
+        responseXml,
+        "application/soap+xml",
+        Encoding.UTF8);
+});
 
 app.Run();
