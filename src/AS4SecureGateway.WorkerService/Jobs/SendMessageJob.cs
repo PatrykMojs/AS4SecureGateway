@@ -36,6 +36,8 @@ public sealed class SendMessageJob : IJob
             ReceiverPartyId = _options.ReceiverPartyId,
 
             PayloadXml = _options.DemoPayloadXml,
+            TestScenario = _options.TestScenario,
+
             SecurityOptions = _options.ToSecurityOptions()
         };
 

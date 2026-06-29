@@ -52,20 +52,6 @@ public static class ServiceCollectionExtensions
                         .WithIdentity($"{nameof(PeekMessageJob)}Trigger")
                         .WithCronSchedule(schedulerOptions.PeekMessageCron));
             }
-
-            if (schedulerOptions.EnableDequeueMessageJob)
-            {
-                var jobKey = new JobKey(nameof(DequeueMessageJob));
-
-                quartz.AddJob<DequeueMessageJob>(options =>
-                    options.WithIdentity(jobKey));
-
-                quartz.AddTrigger(options =>
-                    options
-                        .ForJob(jobKey)
-                        .WithIdentity($"{nameof(DequeueMessageJob)}Trigger")
-                        .WithCronSchedule(schedulerOptions.DequeueMessageCron));
-            }
         });
 
         services.AddQuartzHostedService(options =>

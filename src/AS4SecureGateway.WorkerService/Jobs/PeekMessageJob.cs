@@ -36,6 +36,8 @@ public sealed class PeekMessageJob : IJob
             ReceiverPartyId = _options.ReceiverPartyId,
 
             PeekMessageDomain = _options.PeekMessageDomain,
+            TestScenario = _options.TestScenario,
+            
             SecurityOptions = _options.ToSecurityOptions()
         };
 

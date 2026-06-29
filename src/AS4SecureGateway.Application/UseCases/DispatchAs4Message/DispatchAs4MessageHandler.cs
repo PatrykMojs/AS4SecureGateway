@@ -80,11 +80,5 @@ public sealed class DispatchAs4MessageHandler
         {
             throw new InvalidOperationException("PayloadXml is required for SendMessage.");
         }
-
-        if (command.ActionType == As4ActionType.DequeueMessage &&
-            string.IsNullOrWhiteSpace(command.DocumentReferenceNumber))
-        {
-            throw new InvalidOperationException("DocumentReferenceNumber is required for DequeueMessage.");
-        } 
     }
 }

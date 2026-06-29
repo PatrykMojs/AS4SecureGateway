@@ -36,7 +36,7 @@ public sealed class As4MessageMetadataFactory
 
             Service = DefaultService,
             Action = action,
-            AgreementRef = CreateAgreementRef(actionType, action, suffix, securityOptions),
+            AgreementRef = CreateAgreementRef(action, suffix),
             ConversationId = CreateConversationId(),
 
             MimeType = securityOptions.EnableCompression ? "application/xml" : null,
@@ -51,25 +51,12 @@ public sealed class As4MessageMetadataFactory
         {
             As4ActionType.SendMessage => "SendMessage",
             As4ActionType.PeekMessage => "PeekMessage.Request",
-            As4ActionType.DequeueMessage => "DequeueMessage",
             _ => throw new InvalidOperationException($"Unsupported action type: {actionType}")
         };
     }
 
-    private static string CreateAgreementRef(
-        As4ActionType actionType,
-        string action,
-        string suffix,
-        SecurityProcessingOptions securityOptions)
+    private static string CreateAgreementRef(string action, string suffix)
     {
-        var shouldSkipSuffixForDequeue =
-            actionType == As4ActionType.DequeueMessage &&
-            !securityOptions.EnableCompression &&
-            !(securityOptions.EnableEncryption && securityOptions.EnableSignature);
-
-        if (shouldSkipSuffixForDequeue)
-            return $"urn:demo:as4:agreement:{action}";
-
         return $"urn:demo:as4:agreement:{action}{suffix}";
     }
 

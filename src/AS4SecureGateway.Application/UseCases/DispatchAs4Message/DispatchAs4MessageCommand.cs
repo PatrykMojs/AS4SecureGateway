@@ -13,7 +13,8 @@ public sealed class DispatchAs4MessageCommand
 
     public string? PayloadXml { get; init; }
     public string? PeekMessageDomain { get; init; }
-    public string? DocumentReferenceNumber { get; init; }
+
+    public As4TestScenario TestScenario{ get; init; } = As4TestScenario.Ok;
 
     public SecurityProcessingOptions SecurityOptions { get; init; } = new();
 }
