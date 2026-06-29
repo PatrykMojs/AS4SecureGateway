@@ -43,9 +43,22 @@ public sealed class PeekMessageJob : IJob
 
         var result = await _handler.HandleAsync(command, context.CancellationToken);
 
-        _logger.LogInformation(
-            "[PeekMessage] Job finished. HTTP = {StatusCode}, Success = {Success}",
-            (int)result.StatusCode,
-            result.IsSuccessStatusCode);
+        if (result.IsSuccessStatusCode && !result.ParsedResponse.HasFault)
+        {
+            _logger.LogInformation(
+                "[PeekMessage] Job finished successfully. HTTP = {StatusCode}, Status = {Status}, MessageId = {MessageId}",
+                (int)result.StatusCode,
+                result.ParsedResponse.Status,
+                result.ParsedResponse.MessageId);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "[PeekMessage] Job finished with error. HTTP = {StatusCode}, ErrorCode = {ErrorCode}, Description = {Description}, FaultReason = {FaultReason}",
+                (int)result.StatusCode,
+                result.ParsedResponse.ErrorCode,
+                result.ParsedResponse.ErrorDescription,
+                result.ParsedResponse.FaultReason);
+        }
     }
 }

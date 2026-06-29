@@ -43,9 +43,23 @@ public sealed class SendMessageJob : IJob
 
         var result = await _handler.HandleAsync(command, context.CancellationToken);
 
-        _logger.LogInformation(
-            "[SendMessage] Job finished. HTTP = {StatusCode}, Success = {Success}",
-            (int)result.StatusCode,
-            result.IsSuccessStatusCode);
+        if (result.IsSuccessStatusCode && !result.ParsedResponse.HasFault)
+        {
+            _logger.LogInformation(
+                "[SendMessage] Job finished successfully. HTTP = {StatusCode}, Status = {Status}, MessageId = {MessageId}, DocumentId = {DocumentId}",
+                (int)result.StatusCode,
+                result.ParsedResponse.Status,
+                result.ParsedResponse.MessageId,
+                result.ParsedResponse.DocumentId);
+        }
+        else
+        {
+            _logger.LogWarning(
+                "[SendMessage] Job finished with error. HTTP = {StatusCode}, ErrorCode = {ErrorCode}, Description = {Description}, FaultReason = {FaultReason}",
+                (int)result.StatusCode,
+                result.ParsedResponse.ErrorCode,
+                result.ParsedResponse.ErrorDescription,
+                result.ParsedResponse.FaultReason);
+        }
     }
 }

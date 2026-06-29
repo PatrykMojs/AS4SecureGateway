@@ -1,4 +1,5 @@
 using AS4SecureGateway.Application.Abstractions.Messaging;
+using AS4SecureGateway.Application.Abstractions.Responses;
 using AS4SecureGateway.Application.Messaging;
 
 namespace AS4SecureGateway.Application.UseCases.DispatchAs4Message;
@@ -10,20 +11,22 @@ public sealed class DispatchAs4MessageHandler
     private readonly IAs4EnvelopeFactory _envelopeFactory;
     private readonly IAs4SecurityPipeline _securityPipeline;
     private readonly IAs4TransportClient _transportClient;
+    private readonly IAs4ResponseParser _responseParser;
 
     public DispatchAs4MessageHandler(
         As4MessageMetadataFactory metadataFactory,
         IAs4BusinessBodyFactory businessBodyFactory,
         IAs4EnvelopeFactory envelopeFactory,
         IAs4SecurityPipeline securityPipeline,
-        IAs4TransportClient transportClient
-    )
+        IAs4TransportClient transportClient,
+        IAs4ResponseParser responseParser)
     {
         _metadataFactory = metadataFactory;
         _businessBodyFactory = businessBodyFactory;
         _envelopeFactory = envelopeFactory;
         _securityPipeline = securityPipeline;
         _transportClient = transportClient;
+        _responseParser = responseParser;
     }
 
     public async Task<DispatchAs4MessageResult> HandleAsync(DispatchAs4MessageCommand command, CancellationToken cancellationToken)
@@ -55,12 +58,15 @@ public sealed class DispatchAs4MessageHandler
 
         var transportResult = await _transportClient.SendAsync(preparedMessage, cancellationToken);
 
+        var parsedResponse = _responseParser.Parse(transportResult.ResponseBody);
+
         return new DispatchAs4MessageResult
         {
             ActionType = command.ActionType,
             RequestXml = preparedMessage.Envelope.OuterXml,
             StatusCode = transportResult.StatusCode,
-            ResponseBody = transportResult.ResponseBody
+            ResponseBody = transportResult.ResponseBody,
+            ParsedResponse = parsedResponse
         };
     }
 

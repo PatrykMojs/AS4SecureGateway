@@ -2,11 +2,13 @@ using AS4SecureGateway.Application.Abstractions.Certificates;
 using AS4SecureGateway.Application.Abstractions.Compression;
 using AS4SecureGateway.Application.Abstractions.Cryptography;
 using AS4SecureGateway.Application.Abstractions.Messaging;
+using AS4SecureGateway.Application.Abstractions.Responses;
 using AS4SecureGateway.Infrastructure.Certificates;
 using AS4SecureGateway.Infrastructure.Compression;
 using AS4SecureGateway.Infrastructure.Cryptography.Encryption;
 using AS4SecureGateway.Infrastructure.Cryptography.Signatures;
 using AS4SecureGateway.Infrastructure.Http;
+using AS4SecureGateway.Infrastructure.Responses;
 using AS4SecureGateway.Infrastructure.Messaging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,6 +39,8 @@ public static class DependencyInjection
         services.AddSingleton<IAs4BusinessBodyFactory, As4BusinessBodyFactory>();
         services.AddSingleton<IAs4EnvelopeFactory, As4EnvelopeFactory>();
         services.AddSingleton<IAs4SecurityPipeline, As4SecurityPipeline>();
+
+        services.AddSingleton<IAs4ResponseParser, As4ResponseParser>();
 
         return services;
     }
