@@ -1,5 +1,6 @@
 using AS4SecureGateway.WorkerService.Jobs;
 using AS4SecureGateway.WorkerService.Options;
+using AS4SecureGateway.WorkerService.Infrastructure;
 using Quartz;
 
 namespace AS4SecureGateway.WorkerService;
@@ -58,6 +59,8 @@ public static class ServiceCollectionExtensions
         {
            options.WaitForJobsToComplete = true; 
         });
+
+        services.AddHostedService<DatabaseInitializerHostedService>();
 
         return services;
     }

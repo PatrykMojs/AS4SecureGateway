@@ -2,6 +2,7 @@ using AS4SecureGateway.Application;
 using AS4SecureGateway.Infrastructure;
 using AS4SecureGateway.WorkerService;
 using Serilog;
+using Microsoft.Extensions.Hosting;
 
 Directory.SetCurrentDirectory(AppContext.BaseDirectory);
 
@@ -29,6 +30,10 @@ try
     Log.Information("AS4 Secure Message Gateway starting...");
 
     await builder.Build().RunAsync();
+}
+catch(HostAbortedException)
+{
+    
 }
 catch (Exception ex)
 {

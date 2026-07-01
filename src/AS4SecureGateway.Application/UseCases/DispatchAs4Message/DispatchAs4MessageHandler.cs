@@ -1,5 +1,6 @@
 using AS4SecureGateway.Application.Abstractions.Messaging;
 using AS4SecureGateway.Application.Abstractions.Responses;
+using AS4SecureGateway.Application.Abstractions.Persistence;
 using AS4SecureGateway.Application.Messaging;
 
 namespace AS4SecureGateway.Application.UseCases.DispatchAs4Message;
@@ -12,6 +13,7 @@ public sealed class DispatchAs4MessageHandler
     private readonly IAs4SecurityPipeline _securityPipeline;
     private readonly IAs4TransportClient _transportClient;
     private readonly IAs4ResponseParser _responseParser;
+    private readonly IAs4MessageAuditRepository _auditRepository;
 
     public DispatchAs4MessageHandler(
         As4MessageMetadataFactory metadataFactory,
@@ -19,7 +21,8 @@ public sealed class DispatchAs4MessageHandler
         IAs4EnvelopeFactory envelopeFactory,
         IAs4SecurityPipeline securityPipeline,
         IAs4TransportClient transportClient,
-        IAs4ResponseParser responseParser)
+        IAs4ResponseParser responseParser,
+        IAs4MessageAuditRepository auditRepository)
     {
         _metadataFactory = metadataFactory;
         _businessBodyFactory = businessBodyFactory;
@@ -27,6 +30,7 @@ public sealed class DispatchAs4MessageHandler
         _securityPipeline = securityPipeline;
         _transportClient = transportClient;
         _responseParser = responseParser;
+        _auditRepository = auditRepository;
     }
 
     public async Task<DispatchAs4MessageResult> HandleAsync(DispatchAs4MessageCommand command, CancellationToken cancellationToken)
@@ -60,7 +64,7 @@ public sealed class DispatchAs4MessageHandler
 
         var parsedResponse = _responseParser.Parse(transportResult.ResponseBody);
 
-        return new DispatchAs4MessageResult
+        var result = new DispatchAs4MessageResult
         {
             ActionType = command.ActionType,
             RequestXml = preparedMessage.Envelope.OuterXml,
@@ -68,6 +72,24 @@ public sealed class DispatchAs4MessageHandler
             ResponseBody = transportResult.ResponseBody,
             ParsedResponse = parsedResponse
         };
+
+        await _auditRepository.SaveAsync(
+            new As4MessageAuditRecord
+            {
+                ActionType = command.ActionType,
+                HttpStatusCode = (int)transportResult.StatusCode,
+                IsSuccess = result.IsSuccessStatusCode && !parsedResponse.HasFault,
+                RequestXml = preparedMessage.Envelope.OuterXml,
+                ResponseBody = transportResult.ResponseBody,
+                Status = parsedResponse.Status,
+                MessageId = parsedResponse.MessageId,
+                DocumentId = parsedResponse.DocumentId,
+                ErrorCode = parsedResponse.ErrorCode,
+                ErrorDescription = parsedResponse.ErrorDescription,
+                FaultReason = parsedResponse.FaultReason
+            }, cancellationToken);
+
+        return result;
     }
 
     private static void ValidateCommand(DispatchAs4MessageCommand command)

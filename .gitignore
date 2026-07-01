@@ -199,3 +199,12 @@ local-data/
 publish/
 Publish/
 artifacts/
+
+# =========================================================
+# SQLite runtime database
+# =========================================================
+*.db
+*.db-shm
+*.db-wal
+data/
+!data/.gitkeep
