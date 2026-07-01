@@ -208,3 +208,23 @@ artifacts/
 *.db-wal
 data/
 !data/.gitkeep
+
+# =========================================================
+# Certificates and private keys
+# =========================================================
+*.pfx
+*.p12
+*.pem
+*.key
+*.crt
+*.cer
+
+# =========================================================
+# Local certificates
+# =========================================================
+samples/certificates/*
+!samples/certificates/.gitkeep
+!samples/certificates/client/
+!samples/certificates/server/
+!samples/certificates/client/.gitkeep
+!samples/certificates/server/.gitkeep

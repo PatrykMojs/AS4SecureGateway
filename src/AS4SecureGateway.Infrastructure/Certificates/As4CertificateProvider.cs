@@ -1,4 +1,3 @@
-using System.Security.Cryptography.X509Certificates;
 using AS4SecureGateway.Application.Abstractions.Certificates;
 using Microsoft.Extensions.Options;
 
@@ -19,46 +18,51 @@ public sealed class As4CertificateProvider : IAs4CertificateProvider
 
         ValidateOptions();
 
-        var recipientEncryptionCertificate = LoadPublicCertificate(_options.RecipientEncryptionCertificatePath);
+        var localPublicSignatureCertificate = PemCertificateLoader.LoadPublicCertificate(
+            _options.Local.PublicSignatureCertificatePath);
 
-        var signingCertificate  = CertificateInspector.LoadCertificateFromPfx(
-            _options.SigningCertificatePath,
-            _options.SigningCertificatePassword);
+        var localPrivateSignatureCertificate = PemCertificateLoader.LoadCertificateWithPrivateKey(
+            _options.Local.PublicSignatureCertificatePath,
+            _options.Local.PrivateSignatureCertificatePath);
 
-        var signingPublicCertificate = string.IsNullOrWhiteSpace(_options.SigningPublicCertificatePath)
-            ? new X509Certificate2(signingCertificate.RawData)
-            : LoadPublicCertificate(_options.SigningPublicCertificatePath);
+        var localPublicEncryptionCertificate = PemCertificateLoader.LoadPublicCertificate(
+            _options.Local.PublicEncryptionCertificatePath);
+
+        var localPrivateEncryptionCertificate = PemCertificateLoader.LoadCertificateWithPrivateKey(
+            _options.Local.PublicEncryptionCertificatePath,
+            _options.Local.PrivateEncryptionCertificatePath);
+
+        var remotePublicSignatureCertificate = PemCertificateLoader.LoadPublicCertificate(
+            _options.Remote.PublicSignatureCertificatePath);
+
+        var remotePublicEncryptionCertificate = PemCertificateLoader.LoadPublicCertificate(
+            _options.Remote.PublicEncryptionCertificatePath);
 
         var certificateSet = new As4CertificateSet(
-            recipientEncryptionCertificate,
-            signingCertificate,
-            signingPublicCertificate);
+            localPublicSignatureCertificate,
+            localPrivateSignatureCertificate,
+            localPublicEncryptionCertificate,
+            localPrivateEncryptionCertificate,
+            remotePublicSignatureCertificate,
+            remotePublicEncryptionCertificate);
 
         return Task.FromResult(certificateSet);
     }
 
     private void ValidateOptions()
     {
-        if (string.IsNullOrWhiteSpace(_options.RecipientEncryptionCertificatePath))
-            throw new InvalidOperationException("Recipient encryption certificate path is not configured.");
+        ValidatePath(_options.Local.PublicSignatureCertificatePath, "Certificates:Local:PublicSignatureCertificatePath");
+        ValidatePath(_options.Local.PrivateSignatureCertificatePath, "Certificates:Local:PrivateSignatureCertificatePath");
+        ValidatePath(_options.Local.PublicEncryptionCertificatePath, "Certificates:Local:PublicEncryptionCertificatePath");
+        ValidatePath(_options.Local.PrivateEncryptionCertificatePath, "Certificates:Local:PrivateEncryptionCertificatePath");
 
-        if (string.IsNullOrWhiteSpace(_options.SigningCertificatePath))
-            throw new InvalidOperationException("Signing certificate path is not configured.");
+        ValidatePath(_options.Remote.PublicSignatureCertificatePath, "Certificates:Remote:PublicSignatureCertificatePath");
+        ValidatePath(_options.Remote.PublicEncryptionCertificatePath, "Certificates:Remote:PublicEncryptionCertificatePath");
     }
 
-    private static X509Certificate2 LoadPublicCertificate(string path)
+    private static void ValidatePath(string value, string name)
     {
-        if (string.IsNullOrWhiteSpace(path))
-            throw new ArgumentException("Certificate path cannot be empty.", nameof(path));
-
-        var extension = Path.GetExtension(path).ToLowerInvariant();
-
-        return extension switch
-        {
-            ".pem" => CertificateInspector.LoadCertificateFromPem(path),
-            ".cer" or ".crt" => new X509Certificate2(path),
-            ".pfx" or ".p12" => new X509Certificate2(path),
-            _ => new X509Certificate2(path)
-        };
+        if (string.IsNullOrWhiteSpace(value))
+            throw new InvalidOperationException($"{name} is required.");
     }
 }

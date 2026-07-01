@@ -96,8 +96,8 @@ public sealed class As4SecurityPipeline : IAs4SecurityPipeline
             _xmlBodySigner.SignBody(
                 envelope,
                 businessBodyXml,
-                certificates.SigningCertificate,
-                certificates.SigningPublicCertificate);
+                certificates.LocalPrivateSignatureCertificate,
+                certificates.LocalPublicSignatureCertificate);
         }
 
         if (securityOptions.EnableEncryption)
@@ -105,7 +105,7 @@ public sealed class As4SecurityPipeline : IAs4SecurityPipeline
             _xmlBodyEncryptor.EncryptBody(
                 envelope,
                 securityOptions.EnableSignature ? null : businessBodyXml,
-                certificates.RecipientEncryptionCertificate);
+                certificates.RemotePublicEncryptionCertificate);
         }
 
         return new PreparedAs4Message
@@ -122,38 +122,42 @@ public sealed class As4SecurityPipeline : IAs4SecurityPipeline
         SecurityProcessingOptions securityOptions,
         As4CertificateSet? certificates)
     {
-        var payloadBytes = Encoding.UTF8.GetBytes(businessBodyXml);
-        var compressedPayload = _payloadCompressor.Compress(payloadBytes);
-
-        byte[] attachmentContent = compressedPayload;
-
         if (certificates is null)
-            throw new InvalidOperationException("Certificates are required for signing or encryption.");
+            throw new InvalidOperationException("Certificates are required for secured compressed body attachment.");
 
-        if (securityOptions.EnableSignature)
+        if (!securityOptions.EnableSignature || !securityOptions.EnableEncryption)
         {
-            _attachmentSignatureBuilder.SignCompressedAttachment(
-                envelope,
-                compressedPayload,
-                certificates.SigningCertificate,
-                certificates.SigningPublicCertificate,
-                As4MessageDefaults.PayloadContentId);
+            throw new InvalidOperationException(
+                "Compressed external body attachment requires both signature and encryption to be enabled.");
         }
 
-        if (securityOptions.EnableEncryption)
-        {
-            var encryptedAttachment = _compressedAttachmentEncryptor.EncryptCompressedAttachment(
-                envelope,
-                compressedPayload,
-                certificates.RecipientEncryptionCertificate,
-                As4MessageDefaults.PayloadContentId);
+        _xmlBodySigner.SignBody(
+            envelope,
+            businessBodyXml,
+            certificates.LocalPrivateSignatureCertificate,
+            certificates.LocalPublicSignatureCertificate);
 
-            attachmentContent = encryptedAttachment.EncryptedPayload;
-        }
+        _xmlBodyEncryptor.EncryptBody(
+            envelope,
+            bodyContentXml: null,
+            certificates.RemotePublicEncryptionCertificate);
+
+        var bodyElement = GetSoapBody(envelope);
+
+        var encryptedBodyXml = bodyElement.InnerXml;
+
+        if (string.IsNullOrWhiteSpace(encryptedBodyXml))
+            throw new InvalidOperationException("Encrypted SOAP Body content is empty.");
+
+        var encryptedBodyBytes = Encoding.UTF8.GetBytes(encryptedBodyXml);
+
+        var compressedEncryptedBody = _payloadCompressor.Compress(encryptedBodyBytes);
+
+        RemoveBodyChildren(bodyElement);
 
         var attachments = new Dictionary<string, byte[]>
         {
-            [As4MessageDefaults.PayloadContentId] = attachmentContent
+            [As4MessageDefaults.PayloadContentId] = compressedEncryptedBody
         };
 
         return new PreparedAs4Message
@@ -172,5 +176,21 @@ public sealed class As4SecurityPipeline : IAs4SecurityPipeline
             ?? throw new InvalidOperationException("SOAP Body element was not found.");
 
         bodyElement.InnerXml = businessBodyXml;
+    }
+
+    private static XmlElement GetSoapBody(XmlDocument envelope)
+    {
+        var namespaceManager = XmlNamespaceManagerFactory.Create(envelope);
+
+        return envelope.SelectSingleNode("//soap:Body", namespaceManager) as XmlElement
+            ?? throw new InvalidOperationException("SOAP Body element was not found.");
+    }
+
+    private static void RemoveBodyChildren(XmlElement bodyElement)
+    {
+        while (bodyElement.FirstChild is not null)
+        {
+            bodyElement.RemoveChild(bodyElement.FirstChild);
+        }
     }
 }
