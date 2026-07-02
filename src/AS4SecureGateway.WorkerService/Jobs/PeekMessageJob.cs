@@ -1,6 +1,7 @@
 using AS4SecureGateway.Application.Messaging;
 using AS4SecureGateway.Application.UseCases.DispatchAs4Message;
 using AS4SecureGateway.WorkerService.Options;
+using AS4SecureGateway.WorkerService.Utilities;
 using Microsoft.Extensions.Options;
 using Quartz;
 
@@ -13,10 +14,7 @@ public sealed class PeekMessageJob : IJob
     private readonly DispatchAs4MessageHandler _handler;
     private readonly As4WorkerOptions _options;
 
-    public PeekMessageJob(
-        ILogger<PeekMessageJob> logger,
-        DispatchAs4MessageHandler handler,
-        IOptions<As4WorkerOptions> options)
+    public PeekMessageJob(ILogger<PeekMessageJob> logger, DispatchAs4MessageHandler handler, IOptions<As4WorkerOptions> options)
     {
         _logger = logger;
         _handler = handler;
@@ -42,6 +40,19 @@ public sealed class PeekMessageJob : IJob
         };
 
         var result = await _handler.HandleAsync(command, context.CancellationToken);
+
+        _logger.LogInformation(
+            """
+            ================= AS4 SERVER RESPONSE XML =================
+
+            HTTP Status: {StatusCode}
+
+            {ResponseXml}
+
+            ============================================================
+            """,
+            (int)result.StatusCode,
+            XmlLogFormatter.Format(result.ResponseBody));
 
         if (result.IsSuccessStatusCode && !result.ParsedResponse.HasFault)
         {

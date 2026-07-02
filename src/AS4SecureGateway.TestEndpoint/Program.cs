@@ -4,14 +4,15 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using AS4SecureGateway.TestEndpoint.Options;
 using AS4SecureGateway.TestEndpoint.Security;
+using AS4SecureGateway.TestEndpoint.Responses;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.Configure<TestEndpointCertificateOptions>(
-    builder.Configuration.GetSection("Certificates"));
+builder.Services.Configure<TestEndpointCertificateOptions>(builder.Configuration.GetSection("Certificates"));
 
 builder.Services.AddSingleton<TestEndpointGZipDecompressor>();
 builder.Services.AddSingleton<TestEndpointInboundSecurityProcessor>();
+builder.Services.AddSingleton<TestEndpointResponseFactory>();
 
 var app = builder.Build();
 
@@ -22,6 +23,7 @@ app.MapPost("/api/as4/inbound", async (
     IWebHostEnvironment environment,
     ILogger<Program> logger,
     TestEndpointInboundSecurityProcessor securityProcessor,
+    TestEndpointResponseFactory responseFactory,
     CancellationToken cancellationToken) =>
 {
     try
@@ -32,7 +34,31 @@ app.MapPost("/api/as4/inbound", async (
         var contentType = request.ContentType ?? "unknown";
 
         var as4Request = await MultipartAs4RequestReader.ReadAsync(request, cancellationToken);
+
         var securedMessage = securityProcessor.Process(as4Request);
+
+        logger.LogInformation(
+            """
+            ================= AS4 DECRYPTED MESSAGE =================
+
+            PayloadContentId: {PayloadContentId}
+            SignatureValid: {SignatureValid}
+
+            ----------------- DECRYPTED SOAP ENVELOPE -----------------
+
+            {DecryptedEnvelopeXml}
+
+            ----------------- BUSINESS BODY -----------------
+
+            {BusinessBodyXml}
+
+            ============================================================
+            """,
+            securedMessage.PayloadContentId,
+            securedMessage.SignatureValid,
+            FormatXml(securedMessage.DecryptedEnvelopeXml),
+            FormatXml($"<Root>{securedMessage.BusinessBodyXml}</Root>"));
+
         var scenario = ExtractTestScenario(securedMessage.BusinessBodyXml);
 
         var fileName = $"as4-secured-request-{DateTime.UtcNow:yyyyMMdd-HHmmss-fff}.txt";
@@ -54,22 +80,32 @@ app.MapPost("/api/as4/inbound", async (
 
         await File.WriteAllTextAsync(filePath, fileContent, Encoding.UTF8, cancellationToken);
 
+        var response = responseFactory.CreateResponse(scenario, securedMessage.DecryptedEnvelopeXml, securedMessage.BusinessBodyXml);
+
         logger.LogInformation(
-            "Secured AS4 request processed. SignatureValid = {SignatureValid}, Scenario = {Scenario}",
-            securedMessage.SignatureValid,
-            scenario);
+            """
+            ================= AS4 RESPONSE SENT =================
 
-        var (statusCode, responseXml) = CreateResponse(scenario);
+            HTTP Status: {StatusCode}
+            Content-Type: {ContentType}
 
-        return Results.Content(responseXml, "application/soap+xml", Encoding.UTF8, statusCode);
+            {ResponseXml}
+
+            =====================================================
+            """,
+            response.StatusCode,
+            response.ContentType,
+            FormatXml(response.Body));
+
+        return Results.Content(response.Body, response.ContentType, Encoding.UTF8, response.StatusCode);
     }
     catch (Exception ex)
     {
         logger.LogError(ex, "Failed to process secured AS4 request.");
 
-        var responseXml = CreateSecurityFaultResponse(ex.Message);
+        var response = responseFactory.CreateSecurityFaultResponse(ex.Message);
 
-        return Results.Content(responseXml, "application/soap+xml", Encoding.UTF8, StatusCodes.Status400BadRequest);
+        return Results.Content(response.Body, response.ContentType, Encoding.UTF8, response.StatusCode);
     }
 });
 
@@ -239,4 +275,21 @@ static string CreateSecurityFaultResponse(string message)
              </soap:Body>
            </soap:Envelope>
            """;
+}
+
+static string FormatXml(string xml)
+{
+    if (string.IsNullOrWhiteSpace(xml))
+        return string.Empty;
+
+    try
+    {
+        var document = XDocument.Parse(xml);
+
+        return document.ToString();
+    }
+    catch
+    {
+        return xml;
+    }
 }
