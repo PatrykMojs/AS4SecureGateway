@@ -1,8 +1,17 @@
+using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using AS4SecureGateway.TestEndpoint.Options;
+using AS4SecureGateway.TestEndpoint.Security;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<TestEndpointCertificateOptions>(
+    builder.Configuration.GetSection("Certificates"));
+
+builder.Services.AddSingleton<TestEndpointGZipDecompressor>();
+builder.Services.AddSingleton<TestEndpointInboundSecurityProcessor>();
 
 var app = builder.Build();
 
@@ -12,48 +21,56 @@ app.MapPost("/api/as4/inbound", async (
     HttpRequest request,
     IWebHostEnvironment environment,
     ILogger<Program> logger,
+    TestEndpointInboundSecurityProcessor securityProcessor,
     CancellationToken cancellationToken) =>
 {
-    var receivedDirectory = Path.Combine(environment.ContentRootPath, "received");
-    Directory.CreateDirectory(receivedDirectory);
+    try
+    {
+        var receivedDirectory = Path.Combine(environment.ContentRootPath, "received");
+        Directory.CreateDirectory(receivedDirectory);
 
-    var contentType = request.ContentType ?? "unknown";
+        var contentType = request.ContentType ?? "unknown";
 
-    using var reader = new StreamReader(
-        request.Body,
-        Encoding.UTF8,
-        detectEncodingFromByteOrderMarks: true,
-        leaveOpen: false);
+        var as4Request = await MultipartAs4RequestReader.ReadAsync(request, cancellationToken);
+        var securedMessage = securityProcessor.Process(as4Request);
+        var scenario = ExtractTestScenario(securedMessage.BusinessBodyXml);
 
-    var requestBody = await reader.ReadToEndAsync(cancellationToken);
+        var fileName = $"as4-secured-request-{DateTime.UtcNow:yyyyMMdd-HHmmss-fff}.txt";
+        var filePath = Path.Combine(receivedDirectory, fileName);
 
-    var fileName = $"as4-request-{DateTime.UtcNow:yyyyMMdd-HHmmss-fff}.txt";
-    var filePath = Path.Combine(receivedDirectory, fileName);
+        var fileContent = $"""
+                          ReceivedAtUtc: {DateTime.UtcNow:O}
+                          Content-Type: {contentType}
+                          PayloadContentId: {securedMessage.PayloadContentId}
+                          SignatureValid: {securedMessage.SignatureValid}
+                          TestScenario: {scenario}
 
-    var fileContent = $"""
-                      ReceivedAtUtc: {DateTime.UtcNow:O}
-                      Content-Type: {contentType}
+                          DECRYPTED SOAP ENVELOPE:
+                          {securedMessage.DecryptedEnvelopeXml}
 
-                      {requestBody}
-                      """;
+                          BUSINESS BODY:
+                          {securedMessage.BusinessBodyXml}
+                          """;
 
-    await File.WriteAllTextAsync(filePath, fileContent, Encoding.UTF8, cancellationToken);
+        await File.WriteAllTextAsync(filePath, fileContent, Encoding.UTF8, cancellationToken);
 
-    var scenario = ExtractTestScenario(requestBody);
+        logger.LogInformation(
+            "Secured AS4 request processed. SignatureValid = {SignatureValid}, Scenario = {Scenario}",
+            securedMessage.SignatureValid,
+            scenario);
 
-    logger.LogInformation(
-        "Received AS4 message. Scenario: {Scenario}. Content-Type: {ContentType}. Saved to: {FilePath}",
-        scenario,
-        contentType,
-        filePath);
+        var (statusCode, responseXml) = CreateResponse(scenario);
 
-    var (statusCode, responseXml) = CreateResponse(scenario);
+        return Results.Content(responseXml, "application/soap+xml", Encoding.UTF8, statusCode);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Failed to process secured AS4 request.");
 
-    return Results.Content(
-        responseXml,
-        "application/soap+xml",
-        Encoding.UTF8,
-        statusCode);
+        var responseXml = CreateSecurityFaultResponse(ex.Message);
+
+        return Results.Content(responseXml, "application/soap+xml", Encoding.UTF8, StatusCodes.Status400BadRequest);
+    }
 });
 
 app.Run();
@@ -195,4 +212,31 @@ static (int StatusCode, string ResponseXml) CreateNotFoundResponse()
                       """;
 
     return (StatusCodes.Status404NotFound, responseXml);
+}
+
+static string CreateSecurityFaultResponse(string message)
+{
+    var safeMessage = SecurityElement.Escape(message) ?? "Security processing failed.";
+
+    return $"""
+           <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+                          xmlns:demo="urn:demo:as4:test-endpoint:v1">
+             <soap:Body>
+               <soap:Fault>
+                 <soap:Code>
+                   <soap:Value>soap:Sender</soap:Value>
+                 </soap:Code>
+                 <soap:Reason>
+                   <soap:Text xml:lang="en">AS4 security processing failed.</soap:Text>
+                 </soap:Reason>
+                 <soap:Detail>
+                   <demo:Error>
+                     <demo:ErrorCode>DEMO-SECURITY-400</demo:ErrorCode>
+                     <demo:Description>{safeMessage}</demo:Description>
+                   </demo:Error>
+                 </soap:Detail>
+               </soap:Fault>
+             </soap:Body>
+           </soap:Envelope>
+           """;
 }
