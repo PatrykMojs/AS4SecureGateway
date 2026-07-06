@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.0" />
     <PackageReference Include="FluentAssertions" Version="8.10.0" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="8.0.22" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="NSubstitute" Version="5.3.0" />
     <PackageReference Include="xunit" Version="2.5.3" />
@@ -26,6 +27,7 @@
     <ProjectReference Include="..\..\src\AS4SecureGateway.Infrastructure\AS4SecureGateway.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\AS4SecureGateway.Application\AS4SecureGateway.Application.csproj" />
     <ProjectReference Include="..\..\src\AS4SecureGateway.Domain\AS4SecureGateway.Domain.csproj" />
+    <ProjectReference Include="..\..\src\AS4SecureGateway.TestEndpoint\AS4SecureGateway.TestEndpoint.csproj" />
   </ItemGroup>
 
 </Project>
