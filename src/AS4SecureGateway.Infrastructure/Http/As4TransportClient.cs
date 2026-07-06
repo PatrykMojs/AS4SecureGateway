@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using AS4SecureGateway.Application.Abstractions.Messaging;
+using AS4SecureGateway.Infrastructure.Responses;
 using Microsoft.Extensions.Options;
 
 namespace AS4SecureGateway.Infrastructure.Http;
@@ -11,11 +12,16 @@ public sealed class As4TransportClient : IAs4TransportClient
 
     private readonly HttpClient _httpClient;
     private readonly As4TransportOptions _options;
+    private readonly SecuredAs4ResponseProcessor _securedResponseProcessor;
 
-    public As4TransportClient(HttpClient httpClient, IOptions<As4TransportOptions> options)
+    public As4TransportClient(
+        HttpClient httpClient, 
+        IOptions<As4TransportOptions> options,
+        SecuredAs4ResponseProcessor securedResponseProcessor)
     {
         _httpClient = httpClient;
         _options = options.Value;
+        _securedResponseProcessor = securedResponseProcessor;
 
         if (_options.TimeoutSeconds > 0)
             _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
@@ -36,7 +42,15 @@ public sealed class As4TransportClient : IAs4TransportClient
 
         using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead, cancellationToken);
 
-        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        var responseContentType = response.Content.Headers.ContentType?.ToString() ?? string.Empty;
+
+        var responseBody = responseContentType.StartsWith(
+            "multipart/related",
+            StringComparison.OrdinalIgnoreCase)
+                ? _securedResponseProcessor.Process(
+                    await response.Content.ReadAsByteArrayAsync(cancellationToken),
+                    responseContentType)
+                : await response.Content.ReadAsStringAsync(cancellationToken);
 
         return new As4TransportResult
         {
