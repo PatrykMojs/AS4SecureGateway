@@ -13,6 +13,7 @@ builder.Services.Configure<TestEndpointCertificateOptions>(builder.Configuration
 builder.Services.AddSingleton<TestEndpointGZipDecompressor>();
 builder.Services.AddSingleton<TestEndpointInboundSecurityProcessor>();
 builder.Services.AddSingleton<TestEndpointResponseFactory>();
+builder.Services.AddSingleton<TestEndpointSecuredResponseWriter>();
 
 var app = builder.Build();
 
@@ -20,10 +21,12 @@ app.MapGet("/", () => Results.Ok("AS4 Secure Gateway Test Endpoint is running.")
 
 app.MapPost("/api/as4/inbound", async (
     HttpRequest request,
+    HttpResponse httpResponse,
     IWebHostEnvironment environment,
     ILogger<Program> logger,
     TestEndpointInboundSecurityProcessor securityProcessor,
     TestEndpointResponseFactory responseFactory,
+    TestEndpointSecuredResponseWriter securedResponseWriter,
     CancellationToken cancellationToken) =>
 {
     try
@@ -33,31 +36,11 @@ app.MapPost("/api/as4/inbound", async (
 
         var contentType = request.ContentType ?? "unknown";
 
-        var as4Request = await MultipartAs4RequestReader.ReadAsync(request, cancellationToken);
+        var as4Request = await MultipartAs4RequestReader.ReadAsync(
+            request,
+            cancellationToken);
 
         var securedMessage = securityProcessor.Process(as4Request);
-
-        logger.LogInformation(
-            """
-            ================= AS4 DECRYPTED MESSAGE =================
-
-            PayloadContentId: {PayloadContentId}
-            SignatureValid: {SignatureValid}
-
-            ----------------- DECRYPTED SOAP ENVELOPE -----------------
-
-            {DecryptedEnvelopeXml}
-
-            ----------------- BUSINESS BODY -----------------
-
-            {BusinessBodyXml}
-
-            ============================================================
-            """,
-            securedMessage.PayloadContentId,
-            securedMessage.SignatureValid,
-            FormatXml(securedMessage.DecryptedEnvelopeXml),
-            FormatXml($"<Root>{securedMessage.BusinessBodyXml}</Root>"));
 
         var scenario = ExtractTestScenario(securedMessage.BusinessBodyXml);
 
@@ -78,34 +61,51 @@ app.MapPost("/api/as4/inbound", async (
                           {securedMessage.BusinessBodyXml}
                           """;
 
-        await File.WriteAllTextAsync(filePath, fileContent, Encoding.UTF8, cancellationToken);
+        await File.WriteAllTextAsync(
+            filePath,
+            fileContent,
+            Encoding.UTF8,
+            cancellationToken);
 
-        var response = responseFactory.CreateResponse(scenario, securedMessage.DecryptedEnvelopeXml, securedMessage.BusinessBodyXml);
+        var plainResponse = responseFactory.CreateResponse(
+            scenario,
+            securedMessage.DecryptedEnvelopeXml,
+            securedMessage.BusinessBodyXml);
 
         logger.LogInformation(
             """
-            ================= AS4 RESPONSE SENT =================
+            ================= PLAIN AS4 RESPONSE BEFORE SECURITY =================
 
             HTTP Status: {StatusCode}
             Content-Type: {ContentType}
 
             {ResponseXml}
 
-            =====================================================
+            ====================================================================
             """,
-            response.StatusCode,
-            response.ContentType,
-            FormatXml(response.Body));
+            plainResponse.StatusCode,
+            plainResponse.ContentType,
+            plainResponse.Body);
 
-        return Results.Content(response.Body, response.ContentType, Encoding.UTF8, response.StatusCode);
+        await securedResponseWriter.WriteAsync(
+            httpResponse,
+            plainResponse,
+            logger,
+            cancellationToken);
     }
     catch (Exception ex)
     {
         logger.LogError(ex, "Failed to process secured AS4 request.");
 
-        var response = responseFactory.CreateSecurityFaultResponse(ex.Message);
+        var plainFaultResponse = responseFactory.CreateSecurityFaultResponse(ex.Message);
 
-        return Results.Content(response.Body, response.ContentType, Encoding.UTF8, response.StatusCode);
+        httpResponse.StatusCode = plainFaultResponse.StatusCode;
+        httpResponse.ContentType = plainFaultResponse.ContentType;
+
+        await httpResponse.WriteAsync(
+            plainFaultResponse.Body,
+            Encoding.UTF8,
+            cancellationToken);
     }
 });
 

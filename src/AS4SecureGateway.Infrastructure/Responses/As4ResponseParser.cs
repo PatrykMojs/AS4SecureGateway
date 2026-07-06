@@ -27,7 +27,7 @@ public sealed class As4ResponseParser : IAs4ResponseParser
         return new As4ParsedResponse
         {
             Status = GetValue(document, "Status"),
-            MessageId = GetValue(document, "MessageId"),
+            MessageId = GetValue(document, "MessageId") ?? GetValue(document, "ResponseMessageId"),
             DocumentId = GetValue(document, "DocumentId"),
             ReceivedAtUtc = GetValue(document, "ReceivedAtUtc")
         };

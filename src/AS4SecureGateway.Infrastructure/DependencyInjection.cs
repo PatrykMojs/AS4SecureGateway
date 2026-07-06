@@ -34,6 +34,8 @@ public static class DependencyInjection
         services.AddSingleton<IAs4CertificateProvider, As4CertificateProvider>();
 
         services.AddSingleton<IPayloadCompressor, GZipPayloadCompressor>();
+        services.AddSingleton<IPayloadDecompressor, GZipPayloadDecompressor>();
+        services.AddSingleton<SecuredAs4ResponseProcessor>();
 
         services.AddSingleton<IXmlBodySigner, XmlBodySigner>();
         services.AddSingleton<IXmlBodyEncryptor, XmlBodyEncryptor>();
