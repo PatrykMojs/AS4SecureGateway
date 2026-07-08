@@ -1,5 +1,6 @@
 # AS4 Secure Gateway
 
+[![.NET CI](https://github.com/PatrykMojs/AS4SecureGateway/actions/workflows/dotnet-ci.yml/badge.svg)](https://github.com/PatrykMojs/AS4SecureGateway/actions/workflows/dotnet-ci.yml)
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)
 ![C#](https://img.shields.io/badge/C%23-100%25-239120?style=for-the-badge&logo=csharp)
 ![Status](https://img.shields.io/badge/status-work%20in%20progress-orange?style=for-the-badge)

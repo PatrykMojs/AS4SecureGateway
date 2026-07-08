@@ -1,0 +1,34 @@
+name: .NET CI
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore AS4SecureGateway.sln
+
+      - name: Build solution
+        run: dotnet build AS4SecureGateway.sln --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test AS4SecureGateway.sln --configuration Release --no-build --verbosity normal
