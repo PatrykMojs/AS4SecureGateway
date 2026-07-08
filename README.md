@@ -1,18 +1,22 @@
 # AS4 Secure Gateway
 
-[![.NET CI](https://github.com/PatrykMojs/AS4SecureGateway/actions/workflows/dotnet-ci.yml/badge.svg)](https://github.com/PatrykMojs/AS4SecureGateway/actions/workflows/dotnet-ci.yml)
+[![.NET CI](https://github.com/PatrykMojs/AS4SecureGateway/actions/workflows/dotnet-ci.yml/badge.svg?branch=develop)](https://github.com/PatrykMojs/AS4SecureGateway/actions/workflows/dotnet-ci.yml)
+
 ![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet)
 ![C#](https://img.shields.io/badge/C%23-100%25-239120?style=for-the-badge&logo=csharp)
-![Status](https://img.shields.io/badge/status-work%20in%20progress-orange?style=for-the-badge)
+![Status](https://img.shields.io/badge/status-in%20development-orange?style=for-the-badge)
 ![Architecture](https://img.shields.io/badge/architecture-layered-blue?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-unit%20%2B%20integration-green?style=for-the-badge)
+
+---
 
 ## Overview
 
 **AS4 Secure Gateway** is a portfolio project that simulates an AS4-style secure message gateway built with **.NET 8**.
 
-The project focuses on preparing, securing and dispatching SOAP/XML business messages using a clean, modular architecture. It separates business logic, application use cases, infrastructure implementations, worker processing and testing into dedicated projects.
+The project focuses on preparing, securing and dispatching SOAP/XML business messages using a clean, modular architecture. It separates business logic, application use cases, infrastructure implementations, worker processing, local endpoint simulation and automated testing into dedicated projects.
 
-The main goal of this project is to demonstrate practical knowledge of enterprise integration patterns, secure message exchange, SOAP/XML processing, certificate-based cryptography and maintainable .NET backend architecture.
+The main goal of this project is to demonstrate practical knowledge of enterprise integration patterns, secure message exchange, SOAP/XML processing, certificate-based cryptography, background processing and maintainable .NET backend architecture.
 
 > This repository is an educational and portfolio-oriented implementation. It is not a certified production-ready AS4/eDelivery access point.
 
@@ -30,17 +34,21 @@ The main goal of this project is to demonstrate practical knowledge of enterpris
   - payload compression
   - message encryption
   - digital signature
-- X.509 certificate provider abstraction
+- X.509 certificate-based security
 - XML body signing abstraction
 - XML body encryption abstraction
 - Attachment signing abstraction
 - Compressed attachment encryption abstraction
-- HTTP transport client abstraction
 - AS4 envelope generation abstraction
 - AS4 security pipeline abstraction
+- HTTP transport client abstraction
 - Worker Service foundation
-- Local test endpoint for development and integration testing
-- Separate test projects for Application, Domain and Infrastructure layers
+- Quartz.NET scheduled jobs
+- Serilog-based logging
+- Local ASP.NET Core test endpoint
+- Unit tests for Application, Domain and Infrastructure layers
+- End-to-end integration test for the AS4 `SendMessage` flow
+- GitHub Actions CI workflow for automated build and test validation
 
 ---
 
@@ -58,8 +66,11 @@ The main goal of this project is to demonstrate practical knowledge of enterpris
 - **Digital signatures**
 - **Message encryption**
 - **HTTP client abstraction**
+- **xUnit**
+- **FluentAssertions**
+- **NSubstitute**
+- **GitHub Actions**
 - **Layered architecture**
-- **Unit and integration testing foundation**
 
 ---
 
@@ -67,6 +78,10 @@ The main goal of this project is to demonstrate practical knowledge of enterpris
 
 ```text
 AS4SecureGateway/
+├── .github/
+│   └── workflows/
+│       └── dotnet-ci.yml
+│
 ├── src/
 │   ├── AS4SecureGateway.Application/
 │   │   ├── Abstractions/
@@ -89,6 +104,8 @@ AS4SecureGateway/
 │   │   ├── Http/
 │   │   ├── Messaging/
 │   │   ├── Mime/
+│   │   ├── Persistence/
+│   │   ├── Responses/
 │   │   ├── Soap/
 │   │   └── Xml/
 │   │
@@ -102,6 +119,7 @@ AS4SecureGateway/
 │   ├── AS4SecureGateway.Application.Tests/
 │   ├── AS4SecureGateway.Domain.Tests/
 │   └── AS4SecureGateway.Infrastructure.Tests/
+│       └── Integration/
 │
 ├── .gitignore
 ├── AS4SecureGateway.sln
@@ -118,11 +136,13 @@ The project follows a layered architecture where each layer has a separate respo
 |---|---|
 | `Domain` | Core business models and domain concepts |
 | `Application` | Use cases, application logic, messaging models and abstractions |
-| `Infrastructure` | Technical implementations for certificates, compression, cryptography, HTTP, SOAP, MIME and XML processing |
+| `Infrastructure` | Technical implementations for certificates, compression, cryptography, HTTP, SOAP, MIME, persistence and XML processing |
 | `Contracts` | Shared contracts used between projects |
 | `WorkerService` | Background service host for automated message processing |
-| `TestEndpoint` | Local test endpoint for development and integration scenarios |
-| `Tests` | Automated tests for the main application layers |
+| `TestEndpoint` | Local endpoint used to simulate AS4 message reception |
+| `Tests` | Automated unit and integration tests |
+
+This separation keeps the application layer independent from concrete infrastructure details such as certificate loading, XML signing, encryption, HTTP communication and file-based diagnostics.
 
 ---
 
@@ -149,10 +169,54 @@ Security pipeline
 HTTP transport client
       |
       v
+Test endpoint / external AS4 endpoint
+      |
+      v
+AS4 response processing
+      |
+      v
 Dispatch result
 ```
 
-This approach keeps the application layer independent from the concrete implementation of cryptography, SOAP generation and HTTP communication.
+This approach makes the flow easier to test, extend and replace with real AS4/eDelivery infrastructure in the future.
+
+---
+
+## End-to-End SendMessage Scenario
+
+The repository includes an end-to-end integration test for the `SendMessage` flow.
+
+The test verifies the following scenario:
+
+```text
+Test client / dispatch flow
+      |
+      v
+Create SOAP/AS4 message
+      |
+      v
+Apply compression, encryption and digital signature
+      |
+      v
+Send multipart AS4-style request over HTTP
+      |
+      v
+Receive request in local TestEndpoint
+      |
+      v
+Read multipart payload
+      |
+      v
+Process security layer
+      |
+      v
+Create AS4-style response
+      |
+      v
+Parse and validate dispatch result
+```
+
+This test is intended to prove that the main message flow works across multiple layers, not only as isolated unit tests.
 
 ---
 
@@ -160,11 +224,11 @@ This approach keeps the application layer independent from the concrete implemen
 
 The project currently defines the following AS4-style actions:
 
-| Action | Description |
-|---|---|
-| `SendMessage` | Prepares and dispatches a business message |
-| `PeekMessage` | Prepares a request for checking available messages |
-| `DequeueMessage` | Prepares a request for downloading or removing a message from a queue |
+| Action | Description | Status |
+|---|---|---|
+| `SendMessage` | Prepares and dispatches a business message | Implemented and covered by tests |
+| `PeekMessage` | Prepares a request for checking available messages | Foundation implemented |
+| `DequeueMessage` | Prepares a request for downloading or removing a message from a queue | Foundation implemented |
 
 ---
 
@@ -209,6 +273,8 @@ The infrastructure layer provides implementations for technical operations such 
 - creating AS4 envelopes
 - applying the AS4 security pipeline
 - sending messages through HTTP
+- parsing AS4/SOAP responses
+- storing audit information for message processing
 
 Registered infrastructure abstractions include:
 
@@ -223,6 +289,64 @@ IAs4BusinessBodyFactory
 IAs4EnvelopeFactory
 IAs4SecurityPipeline
 IAs4TransportClient
+IAs4MessageAuditRepository
+```
+
+---
+
+## Testing
+
+The repository contains dedicated test projects for the main layers:
+
+```text
+AS4SecureGateway.Application.Tests
+AS4SecureGateway.Domain.Tests
+AS4SecureGateway.Infrastructure.Tests
+```
+
+The tests cover:
+
+- AS4 message metadata creation
+- security processing options
+- dispatch use case behavior
+- domain models
+- payload and message validation
+- party and collaboration information models
+- GZip payload compression
+- AS4 business body generation
+- SOAP/AS4 envelope generation
+- AS4 response parsing
+- infrastructure-level message processing
+- end-to-end `SendMessage` flow through the local test endpoint
+
+Run all tests with:
+
+```bash
+dotnet test AS4SecureGateway.sln
+```
+
+The test suite verifies both isolated components and the higher-level AS4 message flow.
+
+---
+
+## Continuous Integration
+
+This repository uses **GitHub Actions** to automatically validate the project.
+
+The CI workflow runs on the `develop` branch and performs:
+
+```text
+dotnet restore
+dotnet build
+dotnet test
+```
+
+This helps ensure that every pushed change can be restored, built and tested in a clean GitHub-hosted environment.
+
+Workflow file:
+
+```text
+.github/workflows/dotnet-ci.yml
 ```
 
 ---
@@ -320,6 +444,7 @@ This project touches areas that are sensitive in real enterprise systems. The fo
 - private keys
 - `.pfx` files
 - `.p12` files
+- `.pem` files containing private keys
 - certificate passwords
 - production certificates
 - real endpoint credentials
@@ -331,70 +456,24 @@ For local development, use only test certificates and sample payloads.
 
 ---
 
-## Testing
-
-The repository contains dedicated test projects for the main layers:
-
-```text
-AS4SecureGateway.Application.Tests
-AS4SecureGateway.Domain.Tests
-AS4SecureGateway.Infrastructure.Tests
-```
-
-Run all tests with:
-
-```bash
-dotnet test
-```
-
-The test structure helps verify application logic, domain behavior and infrastructure components independently.
-
----
-
 ## Current Status
 
 The project is currently under active development.
 
-Implemented foundation:
+Implemented:
 
 - layered solution structure
-- message action model
-- security processing options
+- Domain, Application, Infrastructure, Contracts, WorkerService and TestEndpoint projects
+- AS4-style message action model
+- configurable security processing options
 - application abstractions
 - infrastructure dependency registration
-- worker service project
-- test endpoint project
-- dedicated test projects
-
-Planned improvements:
-
-- complete end-to-end `SendMessage` scenario
-- complete `PeekMessage` scenario
-- complete `DequeueMessage` scenario
-- add sample XML payloads
-- add sample test certificates
-- add integration tests against the test endpoint
-- improve runtime configuration
-- add Docker support
-- add GitHub Actions CI pipeline
-- improve error handling and retry policies
-- add message persistence
-- extend documentation with request and response examples
-
----
-
-## Roadmap
-
-- [ ] Complete full `SendMessage` flow
-- [ ] Complete full `PeekMessage` flow
-- [ ] Complete full `DequeueMessage` flow
-- [ ] Add sample payload files
-- [ ] Add local development certificate examples
-- [ ] Add integration tests
-- [ ] Add Docker configuration
-- [ ] Add CI pipeline
-- [ ] Add detailed architecture documentation
-- [ ] Add production hardening notes
+- Worker Service foundation
+- Quartz-based scheduled jobs
+- local ASP.NET Core TestEndpoint
+- unit tests for Application, Domain and Infrastructure layers
+- end-to-end integration test for the `SendMessage` flow
+- GitHub Actions CI workflow
 
 ---
 
@@ -411,8 +490,11 @@ This project was created to demonstrate practical experience with:
 - certificate-based security
 - compression and encryption pipelines
 - digital signatures
+- HTTP-based integrations
 - dependency inversion
 - testable application design
+- automated testing
+- CI validation with GitHub Actions
 
 ---
 
