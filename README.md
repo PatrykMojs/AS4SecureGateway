@@ -228,7 +228,6 @@ The project currently defines the following AS4-style actions:
 |---|---|---|
 | `SendMessage` | Prepares and dispatches a business message | Implemented and covered by tests |
 | `PeekMessage` | Prepares a request for checking available messages | Foundation implemented |
-| `DequeueMessage` | Prepares a request for downloading or removing a message from a queue | Foundation implemented |
 
 ---
 
