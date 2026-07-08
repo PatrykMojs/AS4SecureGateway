@@ -507,6 +507,10 @@ This project was created to demonstrate practical experience with:
 
 ## License
 
-No license file is currently included in this repository.
+Copyright (c) 2026 Patryk Meus. All rights reserved.
 
-Before using this project outside of private learning or portfolio purposes, add an appropriate license.
+This repository is publicly available for portfolio, educational review and recruitment purposes only.
+
+The source code may be viewed for evaluation purposes, but it may not be copied, modified, distributed, reused or incorporated into another project without prior written permission from the author.
+
+See the [LICENSE.md](LICENSE.md) file for details.
